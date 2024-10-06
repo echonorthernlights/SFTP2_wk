@@ -11,6 +11,8 @@ namespace SFTP2.Services
     public class LogFileCleanupService : BackgroundService, ILogFileCleanupService
     {
         private readonly string _logDirectory = "Logging";
+        private const int MaxRetryAttempts = 3; // Maximum number of retry attempts
+        private const int DelayBetweenRetries = 1000; // Delay between retries in milliseconds
 
         public LogFileCleanupService() { }
 
@@ -24,7 +26,7 @@ namespace SFTP2.Services
                     foreach (var file in logFiles)
                     {
                         var creationTime = File.GetCreationTime(file);
-                        // Check if the file is older than 24 hours
+                        // Check if the file is older than 1 minute
                         if (DateTime.Now >= creationTime.AddMinutes(1))
                         {
                             Debug.WriteLine($"Attempting to delete file: {file}");
@@ -37,33 +39,39 @@ namespace SFTP2.Services
                     Debug.WriteLine($"Error during log file cleanup: {ex.Message}");
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(4), stoppingToken); // Check every 2 minutes
+                await Task.Delay(TimeSpan.FromMinutes(4), stoppingToken); // Check every 4 minutes
             }
         }
 
         private void UnlockAndDeleteFile(string filePath)
         {
-            //if (!IsFileLocked(filePath))
-            //{
+            for (int attempt = 1; attempt <= MaxRetryAttempts; attempt++)
+            {
                 try
                 {
                     // If the file is not locked, delete it
                     File.Delete(filePath);
                     Debug.WriteLine($"Successfully deleted file: {filePath}");
+                    return; // Exit if deletion was successful
                 }
                 catch (IOException ex)
                 {
-                    Debug.WriteLine($"Failed to delete file {filePath}: {ex.Message}.");
+                    Debug.WriteLine($"Attempt {attempt} of {MaxRetryAttempts} failed to delete file {filePath}: {ex.Message}.");
+
+                    // Wait before retrying
+                    if (attempt < MaxRetryAttempts)
+                    {
+                        Thread.Sleep(DelayBetweenRetries);
+                    }
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Unexpected error while trying to delete file: {filePath}, error: {ex.Message}");
+                    return; // Exit on unexpected errors
                 }
-            //}
-            //else
-            //{
-            //    Debug.WriteLine($"File {filePath} is currently locked. Skipping deletion.");
-            //}
+            }
+
+            Debug.WriteLine($"Skipping deletion of file {filePath} after {MaxRetryAttempts} attempts.");
         }
 
         private bool IsFileLocked(string filePath)
