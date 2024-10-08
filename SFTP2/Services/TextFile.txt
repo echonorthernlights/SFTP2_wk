@@ -1,0 +1,19 @@
+﻿namespace SFTP2.Services.Interfaces
+{
+    public interface IMyService
+    {
+        Task PerformTaskAsync(CancellationToken stoppingToken);
+    }
+}
+
+namespace SFTP2.Services
+{
+    public class MyServiceImplementation : IMyService
+    {
+        public async Task PerformTaskAsync(CancellationToken stoppingToken)
+        {
+            // Your logic here
+            // Example: await _context.InFlows.Include(inFlow => inFlow.OutFlow).ToListAsync(stoppingToken);
+        }
+    }
+}

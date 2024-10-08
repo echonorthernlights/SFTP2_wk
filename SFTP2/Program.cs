@@ -1,5 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using SFTP2.Data;
 using SFTP2.Services;
 using SFTP2.Services.Interfaces;
 
@@ -38,11 +40,20 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 
+// Register the ApplicationDbContext with dependency injection
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlite("Data Source=LocalDatabase.db")); // SQLite database in a file
+
+builder.Services.AddHostedService<MyBackgroundService>();
+builder.Services.AddScoped<IRunService, RunService>();
+
 // Register the SFTP service and the log file cleanup service
 builder.Services.AddScoped<SftpService>();
 builder.Services.AddHostedService<LogFileCleanupService>();
 //builder.Services.AddScoped<ILogFileCleanupService, LogFileCleanupService>();
 
+//global config
+builder.Services.AddSingleton<GlobalDataService>();
 
 var app = builder.Build();
 
