@@ -1,83 +1,37 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
-using SFTP2.Services.Interfaces;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using SFTP2.Data;
+using SFTP2.Services.Interfaces;
 
 namespace SFTP2.Services
 {
-    public class RunService : IRunService, IHostedService
+    public class RunService : IRunService
     {
-        private readonly ApplicationDbContext _context;
-        private readonly GlobalDataService _globalDataService;
-        private bool _hasChanges;
-        private Timer _timer;
+        private bool _hasChanges; // Backing field for HasChanges
 
-        public RunService(ApplicationDbContext context, GlobalDataService globalDataService)
+        private readonly Lazy<MyBackgroundService> _backgroundService;
+
+        public RunService(Lazy<MyBackgroundService> backgroundService)
         {
-            _context = context;
-            _globalDataService = globalDataService;
+            _backgroundService = backgroundService;
+            _hasChanges = false; // Initialize as no changes
         }
 
-        public bool HasChanges
-        {
-            get => _hasChanges;
-            set => _hasChanges = value;
-        }
+        public bool HasChanges => _hasChanges; // Read-only property
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task PerformTaskAsync(CancellationToken cancellationToken)
         {
-            _timer = new Timer(DoWork, null, TimeSpan.Zero, TimeSpan.FromMinutes(1));
-            return Task.CompletedTask;
-        }
-
-        private void DoWork(object state)
-        {
-            PerformTaskAsync(CancellationToken.None).Wait();
-        }
-
-        public async Task PerformTaskAsync(CancellationToken stoppingToken)
-        {
-            if (_hasChanges)
+            // Your task logic here
+            await Task.Run(() =>
             {
-                var data = await _context.InFlows
-                    .Include(inFlow => inFlow.OutFlow)
-                    .FirstOrDefaultAsync(stoppingToken);
-
-                if (data != null)
-                {
-                    var jsonData = JsonSerializer.Serialize(data, new JsonSerializerOptions
-                    {
-                        ReferenceHandler = ReferenceHandler.IgnoreCycles,
-                        WriteIndented = true
-                    });
-
-                    string archivesPath = data.ArchivePath;
-
-                    // Update the global data
-                    _globalDataService.Data = data;
-
-                    // You can now use archivesPath as needed
-                    // For example, log it or perform other operations
-                }
-
-                // After performing the task, reset the flag
-                _hasChanges = false;
-            }
+                // Example task logic
+                Console.WriteLine("Performing task...");
+            }, cancellationToken);
         }
 
         public void NotifyChange()
         {
-            _hasChanges = true;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            _timer?.Change(Timeout.Infinite, 0);
-            return Task.CompletedTask;
+            _hasChanges = true; // Set changes to true
         }
     }
 }

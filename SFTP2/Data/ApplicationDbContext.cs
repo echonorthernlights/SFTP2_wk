@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SFTP2.Data.Entities;
-using SFTP2.Services.Interfaces;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,12 +8,9 @@ namespace SFTP2.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        private readonly IRunService _runService;
-
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IRunService runService)
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
-            _runService = runService;
         }
 
         public DbSet<InFlow> InFlows { get; set; }
@@ -65,30 +62,12 @@ namespace SFTP2.Data
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            var hasChanges = ChangeTracker.HasChanges();
-
-            var result = await base.SaveChangesAsync(cancellationToken);
-
-            if (hasChanges)
-            {
-                _runService.NotifyChange();
-            }
-
-            return result;
+            return await base.SaveChangesAsync(cancellationToken);
         }
 
         public override int SaveChanges()
         {
-            var hasChanges = ChangeTracker.HasChanges();
-
-            var result = base.SaveChanges();
-
-            if (hasChanges)
-            {
-                _runService.NotifyChange();
-            }
-
-            return result;
+            return base.SaveChanges();
         }
     }
 }
